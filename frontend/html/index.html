@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crypto-Loader (micro)</title>
+
+  <!-- Tailwind CSS via CDN for modern utility-first styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    /* extend Tailwind to use Inter */
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 text-slate-100 font-sans antialiased flex flex-col items-center p-6">
+
+<h1 class="mt-4 text-3xl font-semibold tracking-tight text-center">CryptoScanner</h1>
+
+<!-- ──────────────── SETTINGS ──────────────── -->
+<form id="settings" class="mt-8 w-full max-w-xl bg-slate-800/60 backdrop-blur rounded-xl shadow-xl p-6 flex flex-wrap gap-4 items-end">
+  <fieldset class="flex-1 min-w-[12rem]">
+    <legend class="text-sm text-slate-400 mb-1">Markets</legend>
+    <select name="symbol" id="symbol" class="w-full rounded-lg bg-slate-900 border border-slate-600 p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <option>BTC/USDT</option> <option>ETH/USDT</option> <option>BNB/USDT</option>
+      <option>SOL/USDT</option> <option>XRP/USDT</option> <option>ADA/USDT</option>
+      <option>DOGE/USDT</option> <option>AVAX/USDT</option> <option>DOT/USDT</option>
+      <option>LINK/USDT</option>
+    </select>
+  </fieldset>
+
+  <label class="flex flex-col flex-1 min-w-[8rem]">
+    <span class="text-sm text-slate-400 mb-1">Interval</span>
+    <select name="interval" id="interval" class="rounded-lg bg-slate-900 border border-slate-600 p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <option value="5m">5 m</option>
+      <option value="10m">10 m</option>
+      <option value="15m">15 m</option>
+    </select>
+  </label>
+
+  <label class="flex flex-col w-28">
+    <span class="text-sm text-slate-400 mb-1">N (candles)</span>
+    <input type="number" id="n" value="100" min="20" max="500" class="rounded-lg bg-slate-900 border border-slate-600 p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+  </label>
+
+  <button type="submit" class="basis-full w-full px-5 py-2.5 rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg hover:-translate-y-0.5 hover:shadow-fuchsia-600/50 active:translate-y-0 transition">Load &amp; Show</button>
+</form>
+
+<!-- ──────────────── OUTPUT ──────────────── -->
+<div id="viewer" class="mt-10 flex items-center gap-4 bg-slate-800/60 backdrop-blur rounded-xl shadow-xl p-6">
+  <button id="prev"  title="← older" class="w-12 h-12 text-xl flex items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 transition">&larr;</button>
+
+  <div id="imgWrap" class="relative w-[640px] h-[640px] flex items-center justify-center rounded-lg bg-slate-900 overflow-hidden">
+    <span class="text-slate-400">No data yet</span>
+  </div>
+
+  <button id="next"  title="newer →" class="w-12 h-12 text-xl flex items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 transition">&rarr;</button>
+</div>
+
+
+<script>
+/* ---------- GLOBAL STATE ---------- */
+let offset = 0;                  // на сколько «влево» ушли (в свечах)
+let lastRequest = {};            // чтобы понять, когда надо сбрасывать offset
+
+const imgWrap  = document.getElementById('imgWrap');
+const logEl    = document.getElementById('log');
+const prevBtn  = document.getElementById('prev');
+const nextBtn  = document.getElementById('next');
+const form     = document.getElementById('settings');
+
+/* ---------- HELPERS ---------- */
+function qs(name){ return form.querySelector(`[name=${name}]`).value }
+
+/* ---------- MAIN VIEW FUNCTION ---------- */
+async function drawChart() {
+  const uiSymbol = qs('symbol');                // e.g. "BTC/USDT"
+  const symbol   = uiSymbol.replace(/[^A-Z0-9]/g, ''); // -> "BTCUSDT"
+  const interval = qs('interval');
+  const n        = Number(document.getElementById('n').value);
+
+  // если пользователь сменил symbol/interval — откатим пагинацию
+  const reqKey = symbol + interval + n;
+  if (reqKey !== lastRequest.key) { offset = 0; lastRequest.key = reqKey }
+
+  // 1. график (покажем спиннер)
+  imgWrap.innerHTML = '<div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent"></div>';
+  const chartUrl = `http://localhost:8000/charts/${symbol}` +
+                   `?interval=${interval}&limit=${n}&offset=${offset}&tz=Europe/Chisinau`;
+  const chartRes = await fetch(chartUrl);
+  if (!chartRes.ok) { imgWrap.innerHTML = await chartRes.text(); return }
+  const { image: rawImg } = await chartRes.json();
+
+  // 2. детект паттернов
+  let img64 = rawImg;
+  try {
+    const detRes = await fetch('http://localhost:8000/detect', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ image: rawImg })
+    });
+    if (detRes.ok) img64 = (await detRes.json()).image;
+  } catch(e){ console.warn('detect error', e) }
+
+  // 3. вывод
+  imgWrap.innerHTML = `<img src="${img64}" class="w-full h-full object-contain animate-fade-in">`;
+  prevBtn.disabled = false;                // всегда можно влево
+  nextBtn.disabled = offset === 0;         // а вправо — если мы уже «самые новые»
+}
+
+/* ---------- HANDLERS ---------- */
+form.addEventListener('submit', async e => { e.preventDefault(); await drawChart() });
+
+prevBtn.onclick = () => {                  // старее
+  const step = Number(document.getElementById('n').value);
+  offset += step; drawChart();
+};
+nextBtn.onclick = () => {                  // новее
+  const step = Number(document.getElementById('n').value);
+  offset = Math.max(0, offset - step); drawChart();
+};
+</script>
+
+<!-- simple fade-in for freshly loaded chart -->
+<style>
+  @keyframes fade-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
+  .animate-fade-in{animation:fade-in .35s ease-out both}
+</style>
+
+<!-- ──────────────── FOOTER ──────────────── -->
+<footer class="mt-12 text-slate-500 text-sm text-center">
+  Bardier Andrei<br>Technical University of Moldova
+</footer>
+
+</body>
+</html>

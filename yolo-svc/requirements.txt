@@ -1,0 +1,14 @@
+# сначала указываем доп. индекс PyTorch
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# ✔ совместимые версии
+numpy==1.26.4
+torch==2.1.2+cpu
+torchvision==0.16.2+cpu
+
+ultralytics==8.2.5
+flask==3.0.2
+gunicorn==21.2.0
+gevent
+opencv-python-headless==4.9.0.80
+Pillow

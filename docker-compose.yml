@@ -1,0 +1,64 @@
+services:
+  mongo:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    container_name: mongo
+    volumes: [ "mongo_data:/data/db" ]
+    ports: [ "27017:27017" ]
+    restart: unless-stopped
+
+  mongo-express:
+    image: mongo-express:1.0.0-alpha.4
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_BASICAUTH: "false"      # или задайте логин/пароль
+    ports:
+      - "8081:8081"
+    depends_on: [ mongo ]
+
+
+  rabbit:
+    image: rabbitmq:3.13-management
+    container_name: rabbit
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # web UI http://localhost:15672 (guest/guest)
+    restart: unless-stopped
+
+  gateway:
+    build: ./gateway
+    container_name: gateway
+    env_file: .env
+    depends_on: [ rabbit ]
+    ports: [ "8000:8000" ]
+    restart: unless-stopped
+
+  worker:
+    build: ./worker
+    container_name: worker
+    env_file: .env
+    depends_on: [ rabbit, mongo ]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    depends_on: [ gateway ]
+    ports: [ "80:80" ]
+    restart: unless-stopped
+
+  chart-svc:
+    build: ./chart-svc
+    container_name: chart-svc
+    env_file: .env
+    depends_on: [ mongo ]
+    restart: unless-stopped
+
+  yolo-svc:
+    build: ./yolo-svc
+    container_name: yolo-svc
+    env_file: .env
+    depends_on: [ chart-svc ]
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

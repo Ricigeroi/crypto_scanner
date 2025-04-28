@@ -1,0 +1,5 @@
+body{ font-family: system-ui, sans-serif; margin:2rem; }
+#viewer{ display:flex; align-items:center; gap:1rem; margin-top:1.5rem }
+#viewer button{ font-size:2rem; width:3rem; height:3rem }
+#imgWrap{ min-width:640px; min-height:640px; display:flex; align-items:center; justify-content:center }
+pre.log{ background:#111;color:#0f0;padding:1rem;overflow:auto;max-height:20vh }
