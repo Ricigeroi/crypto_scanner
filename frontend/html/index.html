@@ -94,7 +94,7 @@ async function drawChart() {
 
   // 1. график (покажем спиннер)
   imgWrap.innerHTML = '<div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent"></div>';
-  const chartUrl = `http://localhost:8000/charts/${symbol}` +
+  const chartUrl = `http://gateway:8000/charts/${symbol}` +
                    `?interval=${interval}&limit=${n}&offset=${offset}&tz=Europe/Chisinau`;
   const chartRes = await fetch(chartUrl);
   if (!chartRes.ok) { imgWrap.innerHTML = await chartRes.text(); return }
@@ -103,7 +103,7 @@ async function drawChart() {
   // 2. детект паттернов
   let img64 = rawImg;
   try {
-    const detRes = await fetch('http://localhost:8000/detect', {
+    const detRes = await fetch('http://gateway:8000/detect', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ image: rawImg })
