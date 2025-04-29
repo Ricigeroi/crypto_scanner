@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    build: ./gateway
+    image: ricigeroi/crypto_scanner:gateway
     container_name: gateway
     env_file: .env
     depends_on: [ rabbit ]
@@ -33,28 +33,28 @@ services:
     restart: unless-stopped
 
   worker:
-    build: ./worker
+    image: ricigeroi/crypto_scanner:worker
     container_name: worker
     env_file: .env
     depends_on: [ rabbit, mongo ]
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    image: ricigeroi/crypto_scanner:frontend
     container_name: frontend
     depends_on: [ gateway ]
     ports: [ "80:80" ]
     restart: unless-stopped
 
   chart-svc:
-    build: ./chart-svc
+    image: ricigeroi/crypto_scanner:chart-svc
     container_name: chart-svc
     env_file: .env
     depends_on: [ mongo ]
     restart: unless-stopped
 
   yolo-svc:
-    build: ./yolo-svc
+    image: ricigeroi/crypto_scanner:yolo-svc
     container_name: yolo-svc
     env_file: .env
     depends_on: [ chart-svc ]
